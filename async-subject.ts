@@ -1,7 +1,7 @@
-import { isObserver, Observer } from "@xan/observer";
-import { Subject } from "@xan/subject";
-import { Observable } from "@xan/observable";
+import { isObserver, type Observer } from "@xan/observer";
+import type { Subject } from "@xan/subject";
 import type { AsyncSubjectConstructor } from "./async-subject-constructor.ts";
+import { ReplaySubject } from "@xan/replay-subject";
 
 /**
  * Object type that acts as a variant of [`Subject`](https://jsr.io/@xan/subject/doc/~/Subject).
@@ -17,41 +17,30 @@ const noValue = Symbol("Flag indicating that a value is not set.");
 
 export const AsyncSubject: AsyncSubjectConstructor = class {
   readonly [Symbol.toStringTag] = "AsyncSubject";
-  readonly #subject = new Subject();
+  readonly #subject = new ReplaySubject(1);
   readonly signal = this.#subject.signal;
   #value: unknown = noValue;
-  readonly #observable = new Observable((observer) =>
-    this.#subject.subscribe({
-      signal: observer.signal,
-      next: () => {},
-      return: () => {
-        if (this.#value !== noValue) observer.next(this.#value);
-        observer.return();
-      },
-      throw: (value) => observer.throw(value),
-    })
-  );
 
   constructor() {
     Object.freeze(this);
-    this.#subject.subscribe(
-      new Observer({
-        next: (value) => (this.#value = value),
-        // We have entered the error flow so we need to reset the value state
-        // since it is no longer relevant and should be dereferenced.
-        throw: () => (this.#value = noValue),
-      }),
-    );
+    this.signal.addEventListener("abort", () => (this.#value = noValue), {
+      once: true,
+    });
   }
 
   next(value: unknown): void {
-    if (this instanceof AsyncSubject) this.#subject.next(value);
-    else throw new TypeError("'this' is not instanceof 'AsyncSubject'");
+    if (!(this instanceof AsyncSubject)) {
+      throw new TypeError("'this' is not instanceof 'AsyncSubject'");
+    }
+    if (!this.signal.aborted) this.#value = value;
   }
 
   return(): void {
-    if (this instanceof AsyncSubject) this.#subject.return();
-    else throw new TypeError("'this' is not instanceof 'AsyncSubject'");
+    if (!(this instanceof AsyncSubject)) {
+      throw new TypeError("'this' is not instanceof 'AsyncSubject'");
+    }
+    if (this.#value !== noValue) this.#subject.next(this.#value);
+    this.#subject.return();
   }
 
   throw(value: unknown): void {
@@ -69,7 +58,7 @@ export const AsyncSubject: AsyncSubjectConstructor = class {
     if (!isObserver(observer)) {
       throw new TypeError("Parameter 1 is not of type 'Observer'");
     }
-    this.#observable.subscribe(observer);
+    this.#subject.subscribe(observer);
   }
 };
 

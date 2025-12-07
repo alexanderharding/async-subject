@@ -5,6 +5,7 @@
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@xan/observable@0.1": "0.1.0",
     "jsr:@xan/observer@0.1": "0.1.0",
+    "jsr:@xan/replay-subject@0.1": "0.1.0",
     "jsr:@xan/subject@0.1": "0.1.0"
   },
   "jsr": {
@@ -26,6 +27,14 @@
     "@xan/observer@0.1.0": {
       "integrity": "a05d35416102441584c182b94963a2d6d357c060e82173efc3181ca61108ebb9"
     },
+    "@xan/replay-subject@0.1.0": {
+      "integrity": "b64064e144344a0b2cf62c4673a9b094410495d48a42c905c4ce70df133d14aa",
+      "dependencies": [
+        "jsr:@xan/observable",
+        "jsr:@xan/observer",
+        "jsr:@xan/subject"
+      ]
+    },
     "@xan/subject@0.1.0": {
       "integrity": "da072adb804dff9cb5d66d9335259701cc2dee5282ffd1a7c74838e531095afc",
       "dependencies": [
@@ -39,6 +48,7 @@
       "jsr:@std/assert@^1.0.16",
       "jsr:@xan/observable@0.1",
       "jsr:@xan/observer@0.1",
+      "jsr:@xan/replay-subject@0.1",
       "jsr:@xan/subject@0.1"
     ]
   }
