@@ -175,7 +175,7 @@ Deno.test("AsyncSubject should not emit values until return", () => {
   assertEquals(notifications, []);
 });
 
-Deno.test("AsyncSubject should pass through this subject", () => {
+Deno.test("AsyncSubject.throw should pass through this subject", () => {
   // Arrange
   const error = new Error("test error");
   const subject = new AsyncSubject<string>();
@@ -196,11 +196,27 @@ Deno.test("AsyncSubject should pass through this subject", () => {
   assertEquals(notifications, [["T", error]]);
 });
 
-Deno.test("AsyncSubject should notify late subscribers", () => {
+Deno.test("AsyncSubject.throw should notify late subscribers", () => {
   // Arrange
+  let overrideGlobals = true;
   const error = new Error("test error");
   const subject = new AsyncSubject<string>();
+  const queueMicrotaskCalls: Array<
+    Parameters<typeof globalThis.queueMicrotask>
+  > = [];
   const notifications: Array<["N", string] | ["R"] | ["T", unknown]> = [];
+  Object.defineProperty(globalThis, "queueMicrotask", {
+    value: new Proxy(globalThis.queueMicrotask, {
+      apply: (
+        target,
+        thisArg,
+        argumentsList: Parameters<typeof globalThis.queueMicrotask>,
+      ) => {
+        queueMicrotaskCalls.push(argumentsList);
+        if (!overrideGlobals) Reflect.apply(target, thisArg, argumentsList);
+      },
+    }),
+  });
 
   // Act
   subject.next("foo");
@@ -215,9 +231,45 @@ Deno.test("AsyncSubject should notify late subscribers", () => {
 
   // Assert
   assertEquals(notifications, [["T", error]]);
+  assertStrictEquals(queueMicrotaskCalls.length, 1);
+  assertThrows(queueMicrotaskCalls[0][0], Error, "test error");
+  overrideGlobals = false;
 });
 
-Deno.test("AsyncSubject should pass through this subject", () => {
+Deno.test(
+  "AsyncSubject.throw should throw in microtask queue if there are no observers",
+  () => {
+    // Arrange
+    let overrideGlobals = true;
+    const error = new Error("test error");
+    const subject = new AsyncSubject<string>();
+    const queueMicrotaskCalls: Array<
+      Parameters<typeof globalThis.queueMicrotask>
+    > = [];
+    Object.defineProperty(globalThis, "queueMicrotask", {
+      value: new Proxy(globalThis.queueMicrotask, {
+        apply: (
+          target,
+          thisArg,
+          argumentsList: Parameters<typeof globalThis.queueMicrotask>,
+        ) => {
+          queueMicrotaskCalls.push(argumentsList);
+          if (!overrideGlobals) Reflect.apply(target, thisArg, argumentsList);
+        },
+      }),
+    });
+
+    // Act
+    subject.throw(error);
+
+    // Assert
+    assertStrictEquals(queueMicrotaskCalls.length, 1);
+    assertThrows(queueMicrotaskCalls[0][0], Error, "test error");
+    overrideGlobals = false;
+  },
+);
+
+Deno.test("AsyncSubject.return should pass through this subject", () => {
   // Arrange
   const subject = new AsyncSubject<string>();
   const notifications: Array<["N", string] | ["R"] | ["T", unknown]> = [];
@@ -237,7 +289,7 @@ Deno.test("AsyncSubject should pass through this subject", () => {
   assertEquals(notifications, [["N", "foo"], ["R"]]);
 });
 
-Deno.test("AsyncSubject should notify late subscribers", () => {
+Deno.test("AsyncSubject.return should notify late subscribers", () => {
   // Arrange
   const subject = new AsyncSubject<string>();
   const notifications: Array<["N", string] | ["R"] | ["T", unknown]> = [];
